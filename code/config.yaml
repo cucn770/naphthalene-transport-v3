@@ -1,4 +1,5 @@
-# naphthalene-transport-v2 global configuration
+# naphthalene-transport v3.0.0 — E1-E4 error corrections applied
+# v2 → v3 changes: see docs/v3_error_fixes.md
 # Based on J. Chem. Phys. 127, 044506 (2007)
 
 crystal:

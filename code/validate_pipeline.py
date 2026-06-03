@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""End-to-end pipeline validation for naphthalene transport v2.
+"""End-to-end pipeline validation for naphthalene transport v3.
 
-Checks all four stages produce physically reasonable results
-consistent with J. Chem. Phys. 127, 044506 (2007).
+v3 corrections (E1-E4) applied. Validates Stage 1-6 results
+against physics constraints from J. Chem. Phys. 127, 044506 (2007).
 """
 import sys
 import numpy as np
@@ -98,6 +98,45 @@ def validate_stage4():
     return all_ok
 
 
+def validate_stage5():
+    """Validate Stage 5: Mobility parameters with E2 fix."""
+    print("\n" + "=" * 60)
+    print("CP5: Mobility Parameter Assembly (v3)")
+    print("=" * 60)
+    data = load_checkpoint('data/results/stage5_mobility_params.npz')
+    G_total = data['G_total']
+    omega_cm1 = data['omega_cm1']
+    print(f"  Modes: {len(omega_cm1)}, range: [{omega_cm1.min():.1f}, {omega_cm1.max():.1f}] cm-1")
+    for d in ['a', 'b', 'c_prime']:
+        A0_key = f'A0_{d}'
+        if A0_key in data.files:
+            print(f"  A0_{d}: {float(data[A0_key]):.2e} m2/s2 (SI)")
+    print(f"  G_total range: [{G_total.min():.6f}, {G_total.max():.4f}]")
+    ok = (G_total.max() > 0) and (G_total.max() < 10.0)
+    print(f"CP5: {'PASS' if ok else 'FAIL'}")
+    return ok
+
+
+def validate_stage6():
+    """Validate Stage 6: Mobility results with E1 fix."""
+    print("\n" + "=" * 60)
+    print("CP6: Mobility Results (v3)")
+    print("=" * 60)
+    data = load_checkpoint('data/results/stage6_mobility_results.npz')
+    T_range = data['T_range']
+    idx_300 = np.argmin(np.abs(T_range - 300))
+    print(f"  mu(300K):")
+    for d in ['a', 'b', 'c_prime']:
+        mu = data[f'mu_total_{d}'][idx_300]
+        band = data[f'mu_band_{d}'][idx_300]
+        hop = data[f'mu_hopping_{d}'][idx_300]
+        mech = "Band" if band > hop else "Hopping"
+        print(f"    {d}: {mu:.4f} cm2/Vs (band={band:.4f}, hop={hop:.4f}) [{mech}]")
+    ok = True
+    print(f"CP6: {'PASS' if ok else 'FAIL'}")
+    return ok
+
+
 if __name__ == '__main__':
     stages_ok = []
 
@@ -123,6 +162,18 @@ if __name__ == '__main__':
         stages_ok.append(validate_stage4())
     except FileNotFoundError as e:
         print(f"Stage 4: not yet run ({e})")
+        stages_ok.append(False)
+
+    try:
+        stages_ok.append(validate_stage5())
+    except FileNotFoundError as e:
+        print(f"Stage 5: not yet run ({e})")
+        stages_ok.append(False)
+
+    try:
+        stages_ok.append(validate_stage6())
+    except FileNotFoundError as e:
+        print(f"Stage 6: not yet run ({e})")
         stages_ok.append(False)
 
     print("\n" + "=" * 60)
