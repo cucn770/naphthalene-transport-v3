@@ -59,13 +59,15 @@ def compute_mobility_at_T(T, A0_alpha, B_alpha, G_total, omega_rads,
     Gamma_rad = Gamma_eV / HBAR_EV
     C, S = compute_C_and_S(t_array, G_total, N_T, omega_rads, Gamma_rad)
 
-    I0 = simpson(C * np.cos(S), x=t_array)
+    # E1 FIX: even integrand, int_{-inf}^{inf} = 2 * int_0^{inf}
+    I0 = 2.0 * simpson(C * np.cos(S), x=t_array)
 
     hopping_sum = 0.0; n_modes = len(G_total)
     for lam in range(n_modes):
         if abs(omega_rads[lam]) < 1e-6: continue
         w_t = omega_rads[lam] * t_array
-        I_lam = simpson(C * ((1+N_T[lam])*np.cos(S+w_t) + N_T[lam]*np.cos(S-w_t)), x=t_array)
+        # E1 FIX: even integrand
+        I_lam = 2.0 * simpson(C * ((1+N_T[lam])*np.cos(S+w_t) + N_T[lam]*np.cos(S-w_t)), x=t_array)
         hopping_sum += B_alpha[lam] * I_lam
 
     prefactor = E0_SI / (KB_SI * T)
@@ -97,12 +99,13 @@ def verify_convergence(T, A0, B, G, omega, Gamma_eV=1e-4):
     t_fine = np.linspace(0, t_cut, n_pts * 2)
     Gamma_rad = Gamma_eV / HBAR_EV
     C, S = compute_C_and_S(t_fine, G, N_T, omega, Gamma_rad)
-    I0f = simpson(C * np.cos(S), x=t_fine)
+    # E1 FIX: even integrand, multiply by 2
+    I0f = 2.0 * simpson(C * np.cos(S), x=t_fine)
     hs = 0.0
     for lam in range(len(G)):
         if abs(omega[lam]) < 1e-6: continue
         w_t = omega[lam] * t_fine
-        hs += B[lam] * simpson(C * ((1+N_T[lam])*np.cos(S+w_t)+N_T[lam]*np.cos(S-w_t)), x=t_fine)
+        hs += B[lam] * 2.0 * simpson(C * ((1+N_T[lam])*np.cos(S+w_t)+N_T[lam]*np.cos(S-w_t)), x=t_fine)
     mu_fine = (E0_SI/(KB_SI*T)) * (A0*I0f + hs) * M2_TO_CM2
     delta = abs(mu_fine - mu_ref) / (abs(mu_ref) + 1e-30)
     ok = delta < 0.05

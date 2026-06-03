@@ -11,7 +11,8 @@ from scipy.optimize import least_squares
 from typing import Dict, Tuple, Optional
 
 from .io_utils import parse_vasp_eigenval, parse_vasp_contcar, save_checkpoint
-from .crystal_utils import CrystalParams, compute_sublattice_displacement
+from .crystal_utils import (CrystalParams, compute_sublattice_displacement,
+                              build_tb_H_AB)
 from .constants import (DIMER_PAIRS_SAME, DIMER_PAIRS_CROSS, REF_T_VALUES_EV)
 from .validator import cp1_check_tb_fit
 
@@ -85,10 +86,10 @@ def fit_tb_parameters(k_frac: np.ndarray, E_homo_dft: np.ndarray,
                 2.0 * tb * np.cos(np.dot(k_cart, R_same[1])) +
                 2.0 * tc * np.cos(np.dot(k_cart, R_same[2])))
 
-        # Cross-sublattice: complex exponential
-        H_AB = (tac * np.exp(1j * np.dot(k_cart, R_cross[0])) +
-                tab * np.exp(1j * np.dot(k_cart, R_cross[1])) +
-                tabc * np.exp(1j * np.dot(k_cart, R_cross[2])))
+        # Cross-sublattice: P2_1/a symmetry via build_tb_H_AB
+        # t_n * [exp(ik·(R+τ)) + exp(ik·(R-τ))] = 2·t_n·cos(k·τ)·exp(ik·R)
+        t_cross_arr = np.array([tac, tab, tabc])
+        H_AB = build_tb_H_AB(k_cart, R_cross, t_cross_arr, tau_AB)
 
         H_AB_abs = np.abs(H_AB)
 
@@ -120,9 +121,8 @@ def fit_tb_parameters(k_frac: np.ndarray, E_homo_dft: np.ndarray,
     H_AA = (2.0 * t_result['a'] * np.cos(np.dot(k_cart, R_same[0])) +
             2.0 * t_result['b'] * np.cos(np.dot(k_cart, R_same[1])) +
             2.0 * t_result['c'] * np.cos(np.dot(k_cart, R_same[2])))
-    H_AB = (t_result['ac'] * np.exp(1j * np.dot(k_cart, R_cross[0])) +
-            t_result['ab'] * np.exp(1j * np.dot(k_cart, R_cross[1])) +
-            t_result['abc'] * np.exp(1j * np.dot(k_cart, R_cross[2])))
+    t_cross_final = np.array([t_result['ac'], t_result['ab'], t_result['abc']])
+    H_AB = build_tb_H_AB(k_cart, R_cross, t_cross_final, tau_AB)
     E_fitted_plus = t_result['epsilon_0'] + H_AA + np.abs(H_AB)
     E_fitted_minus = t_result['epsilon_0'] + H_AA - np.abs(H_AB)
     E_fitted = np.column_stack([E_fitted_plus, E_fitted_minus])
@@ -192,3 +192,26 @@ def run_stage1(eigenval_path: str = 'data/crystal/band/EIGENVAL',
         print(f"Results: {output_path}")
 
     return t_result
+
+
+# === E3 备选路径 (若build_tb_H_AB后RMSE未改善或恶化) ===
+# P2_1/a 对称性要求对交叉子晶格dimer对考虑所有4个符号变体：
+#
+#   t_ab 连接 (±1/2, ±1/2, 0): 4个等效路径
+#   t_abc 连接 (±1/2, ±1/2, 1): 4个等效路径
+#   t_ac 连接 (1, 0, 1) 及其对称等效: 2个等效路径
+#
+# 展开形式示例:
+#   H_AB = tac * (exp(ik·R_ac) + exp(-ik·R_ac))
+#        + tab * (exp(ik·R_ab_pp) + exp(ik·R_ab_pm)
+#               + exp(ik·R_ab_mp) + exp(ik·R_ab_mm))
+#        + tabc * (exp(ik·R_abc_pp) + exp(ik·R_abc_pm)
+#                + exp(ik·R_abc_mp) + exp(ik·R_abc_mm))
+#
+# 其中:
+#   R_ab_pp = tau_AB + (0.5, 0.5, 0),  R_ab_pm = tau_AB + (0.5, -0.5, 0)
+#   R_ab_mp = -tau_AB + (0.5, 0.5, 0), R_ab_mm = -tau_AB + (0.5, -0.5, 0)
+#   (abc类似, 将最后分量改为1)
+#
+# 当前build_tb_H_AB使用 ±τ_AB 但固定R符号,
+# 对应: 2·t_n·cos(k·τ)·exp(ik·R) = t_n·[exp(ik·(R+τ)) + exp(ik·(R-τ))]

@@ -50,7 +50,9 @@ def compute_A0_alpha(t_values: np.ndarray, R_proj: Dict[str, np.ndarray]
                      ) -> Dict[str, float]:
     """Compute band prefactor A0_alpha for each direction.
 
-    A0_alpha = (1/(2*hbar^2)) * sum_n R_alpha,n^2 * t_n^2
+    A0_alpha = 2 * (1/(2*hbar^2)) * sum_n R_alpha,n^2 * t_n^2
+    The factor 2 accounts for +/-R symmetry (12 neighbor paths
+    from 6 independent dimer pairs). E2 FIX.
 
     Args:
         t_values: (6,) transfer integrals in eV [t_a, t_b, t_c, t_ac, t_ab, t_abc]
@@ -60,7 +62,8 @@ def compute_A0_alpha(t_values: np.ndarray, R_proj: Dict[str, np.ndarray]
     t_si = t_values * EV_TO_J
     for direction in ['a', 'b', 'c_prime']:
         R_m = R_proj[direction] * A_TO_M
-        A0[direction] = np.sum(R_m**2 * t_si**2) / (2.0 * HBAR_SI**2)
+        # E2 FIX: factor 2 for all +/-R neighbor pairs
+        A0[direction] = 2.0 * np.sum(R_m**2 * t_si**2) / (2.0 * HBAR_SI**2)
     return A0
 
 
@@ -74,7 +77,9 @@ def compute_B_alpha_lambda(g_nonlocal: np.ndarray, omega_cm1: np.ndarray,
                             ) -> Dict[str, np.ndarray]:
     """Compute mode-resolved hopping prefactor B_alpha_lambda.
 
-    B_alpha_lambda = (omega_lambda^2 / 4) * sum_n R_alpha,n^2 * |g_n|^2
+    B_alpha_lambda = 2 * (omega_lambda^2 / 4) * sum_n R_alpha,n^2 * |g_n|^2
+    The factor 2 accounts for +/-R symmetry (12 neighbor paths
+    from 6 independent dimer pairs). E2 FIX.
     F1 FIX: hbar cancels completely.
     """
     omega_rads = omega_cm1 * CM1_TO_RADS
@@ -85,7 +90,7 @@ def compute_B_alpha_lambda(g_nonlocal: np.ndarray, omega_cm1: np.ndarray,
         B_dir = np.zeros(n_modes)
         for lam in range(n_modes):
             B_dir[lam] = np.sum(R_m**2 * g_nonlocal[lam, :]**2)
-        B_dir *= omega_rads**2 / 4.0
+        B_dir *= 2.0 * omega_rads**2 / 4.0
         B[direction] = B_dir
     return B
 
