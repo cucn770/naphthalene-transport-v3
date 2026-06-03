@@ -77,8 +77,10 @@ def validate_stage4():
     print("=" * 60)
     data = load_checkpoint('data/results/stage4_assembled.npz')
 
-    A_alpha = {k.replace('A_', ''): float(data[k])
-               for k in data.files if k.startswith('A_')}
+    # v3 format: A_k keys for k in a,b,c,ac,ab,abc
+    A_alpha = {k.replace('A_', ''): float(data[f'A_{k}'])
+               for k in ['a', 'b', 'c', 'ac', 'ab', 'abc']
+               if f'A_{k}' in data}
     G_total = data['G_total']
     freqs = data['frequencies_cm1']
 
@@ -88,10 +90,10 @@ def validate_stage4():
     print(f"\nFinal transfer integrals:")
     for key in ['a', 'b', 'c', 'ac', 'ab', 'abc']:
         t_key = f't_{key}'
-        if t_key in data.files:
+        if t_key in data:
             print(f"  t_{key} = {float(data[t_key])*1000:.2f} meV "
                   f"(ref: {REF_T_VALUES_EV[key]*1000:.2f} meV)")
-    print(f"  ε₀ = {float(data['t_equilibrium_epsilon_0']):.4f} eV "
+    print(f"  epsilon_0 = {float(data['t_equilibrium_epsilon_0']):.4f} eV "
           f"(ref: {REF_T_VALUES_EV['epsilon_0']:.4f} eV)")
 
     print(f"\nCP4 {'ALL PASS' if all_ok else 'HAS FAILURES'}")
@@ -109,7 +111,7 @@ def validate_stage5():
     print(f"  Modes: {len(omega_cm1)}, range: [{omega_cm1.min():.1f}, {omega_cm1.max():.1f}] cm-1")
     for d in ['a', 'b', 'c_prime']:
         A0_key = f'A0_{d}'
-        if A0_key in data.files:
+        if A0_key in data:
             print(f"  A0_{d}: {float(data[A0_key]):.2e} m2/s2 (SI)")
     print(f"  G_total range: [{G_total.min():.6f}, {G_total.max():.4f}]")
     ok = (G_total.max() > 0) and (G_total.max() < 10.0)
