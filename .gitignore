@@ -1,2 +1,15 @@
+# Local data and backups (not for GitHub)
+archive_v2/
+data/crystal/
+data/eph/
+data/phonon/
+original_docs/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
