@@ -1,0 +1,18 @@
+# DFPT phonon calculation for naphthalene (36 atoms, P2_1/a)
+# IBRION=8: DFPT via linear response
+# LEPSILON=.TRUE.: enable dielectric response for DFPT
+SYSTEM = Naphthalene DFPT
+ENCUT = 520
+PREC = Accurate
+EDIFF = 1.0E-7
+ISMEAR = 0
+SIGMA = 0.05
+LREAL = .FALSE.
+ISYM = 0
+IBRION = 8
+LEPSILON = .TRUE.
+NSW = 1
+ISIF = 2
+LWAVE = .TRUE.
+LCHARG = .TRUE.
+ADDGRID = .TRUE.
